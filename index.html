@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Google</title>
+  <link rel="icon" href="https://www.google.com/favicon.ico" type="image/x-icon">
+  <style>
+    /* Dark theme styling */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #121212;
+      color: white;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+    }
+
+    h1 {
+      font-size: 36px;
+      margin-bottom: 20px;
+      color: #ffffff;
+    }
+
+    #search-container {
+      text-align: center;
+    }
+
+    #search-bar {
+      background-color: transparent; /* Make the background transparent */
+      color: white;
+      border: 1px solid #444;
+      border-radius: 25px;
+      padding: 15px 20px;
+      font-size: 18px;
+      width: 300px;
+      max-width: 100%;
+      margin-top: 20px;
+      transition: all 0.3s;
+    }
+
+    #search-bar:focus {
+      outline: none;
+      background-color: transparent; /* Ensure the background stays transparent on focus */
+    }
+
+    #search-bar::placeholder {
+      color: #888;
+    }
+
+  </style>
+</head>
+<body>
+  <div id="search-container">
+    <h1>Proxy Search</h1>
+    <input id="search-bar" type="text" placeholder="https://example.com/" />
+  </div>
+
+  <script>
+    const searchBar = document.getElementById('search-bar');
+
+    // Function to handle search when Enter key is pressed
+    searchBar.addEventListener('keypress', function(event) {
+      if (event.key === 'Enter') {
+        let query = searchBar.value.trim();
+
+        // Automatically add 'https://' if missing
+        if (query && !/^https?:\/\//i.test(query)) {
+          query = 'https://' + query;
+        }
+
+        // Redirect to the proxy endpoint with the corrected URL
+        if (query) {
+          window.location.href = `/proxy?url=${encodeURIComponent(query)}`;
+        }
+      }
+    });
+
+    // Function to ensure URL correctness and format
+    function defaultUrl(url) {
+      if( !url.includes('.') && !url.startsWith('https://') && !url.startsWith('http://') ) {
+        this.url = 'https://duckduckgo.com/?q=' + url;
+      } else if (url.startsWith('https://')) {
+        this.url = url;
+      } else if (url.startsWith('http://')) {
+        this.url = 'https://' + url.substring(7);
+      } else {
+        this.url = 'https://' + url;
+      }
+      return this.url;
+    }
+
+    // Check if URL is valid
+    function isUrl(val = ''){ 
+      return /^http(s?):\/\//.test(val) || val.includes('.') && val.substr(0, 1) !== ' ';
+    }
+
+    // Function to ensure images are rerouted properly via proxy
+    function rerouteImages() {
+      const images = document.querySelectorAll('img');
+      images.forEach(img => {
+        const src = img.src;
+        if (src && !src.startsWith(window.location.origin)) {
+          // Reroute image through proxy
+          img.src = '/proxy?url=' + encodeURIComponent(src);
+        }
+      });
+    }
+
+    // Function to intercept all external links and reroute through proxy
+    function rerouteLinks() {
+      const links = document.querySelectorAll('a');
+      links.forEach(link => {
+        const href = link.href;
+        if (href && !href.startsWith(window.location.origin)) {
+          // Intercept external link and reroute through proxy
+          link.href = '/proxy?url=' + encodeURIComponent(href);
+        }
+      });
+    }
+
+    // Proxy handling function
+    function uv(url) {
+      // Clear autofill if any
+      document.querySelectorAll("#autofill")?.forEach(el => {
+        el.style.display = "none";
+      });
+
+      const loading = document.createElement('div');
+      loading.textContent = "Loading content...";
+      document.body.appendChild(loading);
+
+      // Validate and adjust URL
+      let finalUrl = defaultUrl(url.trim());
+      if (!isUrl(finalUrl)) {
+        finalUrl = 'https://' + finalUrl; // Add protocol if missing
+      }
+
+      // Update the page with the new URL (for the proxy to handle)
+      sessionStorage.setItem("tabUrl", finalUrl);
+      window.location.href = '/proxy?url=' + encodeURIComponent(finalUrl);
+    }
+
+    // Check if the page was loaded from the proxy, and if so, apply rerouting functions
+    if (window.location.search.includes('url=')) {
+      const proxyUrl = new URLSearchParams(window.location.search).get('url');
+
+      // Fetch the page content using the proxy
+      fetch('/fetch?url=' + encodeURIComponent(proxyUrl))
+        .then(response => response.text())
+        .then(html => {
+          // Inject the HTML content into the page
+          document.documentElement.innerHTML = html;
+
+          // Reroute images and links to go through the proxy
+          rerouteImages();
+          rerouteLinks();
+
+          // Optionally, update the title or handle other page elements if needed
+          document.title = 'Proxy - ' + document.title;
+        })
+        .catch(error => {
+          console.error('Error loading page:', error);
+          loading.textContent = 'Failed to load content.';
+        });
+    }
+
+  </script>
+</body>
+</html>
